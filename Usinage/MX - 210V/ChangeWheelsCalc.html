@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Lathe Change Wheels Calculator</title>
+	<style>
+		body {
+			font-family: Roboto;
+			padding: 12px;
+			margin: 0 auto;
+			// max-width: 600px;
+		}
+		input[type=text], input[type=number], select {
+			padding: 4px;
+			margin-right: 15px;
+		}
+		.monoSolutions {
+			column-width: 200px;
+			font-family: monospace;
+		}
+		.monoPitches {
+			column-width: 150px;
+			font-family: monospace;
+		}
+		.solutionsBox {
+			border: solid;
+			border-radius: 10px;
+			break-inside: avoid-column;
+		}
+		.approx {
+			color: gray;
+		}
+		input[type=button] {
+			height: 3em;
+			margin: 1em 0;
+			width: 10em;
+		}
+	</style>
+	
+<script>
+'use strict'
+
+// programr constants
+var knownLathes = {
+	MX_210V: {	
+		desc: 'MX-210V Vevor',	
+		spindleZ: 56,
+		spindleDia: 38,	
+		module: 1,	
+		lsPitch: 2,	
+		spacerDia: 20,	
+		cdSpindleLs: 170,	
+		cdMaxTopLs: 130,
+		zMaxLs: 110,
+		gearSet: '20 20 30 33 40 50 52 60 66 72 80 84 90 100 110',
+		gearBoxRatios: '1'
+	},
+	WM250_M: {					// Conventional ID
+		desc: 'WM250 Metric as Warco, Knuth Universa 550, Bernardo Profi 550, etc',	// Long description
+		spindleZ: 40,			// Spindle teeth count
+		spindleDia: 54,			// Spindle diameter above Z2
+		module: 1.5,			// Gear module
+		lsPitch: 3,				// Leadscrew pith 
+		spacerDia: 21,			// Spacers Diameter
+		cdSpindleLs: 215,		// Spindle - Leadscrew Center Distance
+		cdMaxTopLs: 193,		// Maximum center distance top axle - leadscrew.
+		zMaxLs: 85,				// Biggest possible gear on leadscrew (quadrant cover)
+		gearSet: '20 25 30 45 50 60 60 65 70 75 80 85',
+		gearBoxRatios: '0.5 1 2'
+	},
+	WM250_I: {					// Conventional ID
+		desc: 'WM250 Imperial as Warco, etc',	// Long description
+		spindleZ: 40,			// Spindle teeth count
+		spindleDia: 54,			// Spindle diameter above Z2
+		module: 1.5,			// Gear module
+		lsPitch: '8TPI',		// Leadscrew pith 
+		spacerDia: 21,			// Spacers Diameter
+		cdSpindleLs: 215,		// Spindle - Leadscrew Center Distance
+		cdMaxTopLs: 193,		// Maximum center distance top axle - leadscrew.
+		zMaxLs: 85,				// Biggest possible gear on leadscrew (quadrant cover)
+		gearSet: '20 25 30 40 50 55 60 63 70 75 80 80',
+		gearBoxRatios: '0.5 1 2'
+	},
+	WM180: {	
+		desc: 'WM180 180mm',	
+		spindleZ: 60,
+		spindleDia: 35,	
+		module: 1,	
+		lsPitch: 2,	
+		spacerDia: 17,	
+		cdSpindleLs: 130,	
+		cdMaxTopLs: 110,
+		zMaxLs: 80,
+		gearSet: '20 24 30 40 40 50 60 60 70 72 80 80'
+	},
+	//name : 'C1 base',	
+	//desc : 'by SIEG',	
+	//spindleZ : 36,
+	//spindleDia : 44,	
+	//mod : 1,	
+	//lsPitch : 1.5,	
+	//spacerDia : 0,	
+	//cdSpindleLs : 0,	
+	//cdMaxTopLs : 0,
+	//zMaxLs : 0,
+	//gearSet : '19 24 76 90'
+	//name : 'C1 add.l gears',	
+	//desc : 'by SIEG',	
+	//zSpindle : 36,
+	//spindleDia : 44,	
+	//mod : 1,	
+	//lsPitch : 1.5,	
+	//spacerDia : 0,	
+	//cdSpindleLs : 0,	
+	//cdMaxTopLs : 0,
+	//zMaxLs : 0,
+	//gearSet : '19 24 36 40 42 45 48 50 54 76 90'
+//	}, {
+	//name : 'C2',	
+	//desc : 'by SIEG',	
+	//spindleZ : 36,
+	//spindleDia : 44,	
+	//mod : 1,	
+	//lsPitch : 1.5,	
+	//spacerDia : 0,	
+	//cdSpindleLs : 0,	
+	//cdMaxTopLs : 0,
+	//zMaxLs : 0,
+	//gearSet : '35 40 45 49 50 50 55 56 70 80 100 100 120}, {
+	C6B: {		// Conventional ID
+		desc: 'SIEG C6B',	// Long 'description
+		spindleZ: 40,			// Spindle teeth count
+		spindleDia: 0,		// Spindle diameter above Z2
+		module: 1,				// Gear module
+		lsPitch: 2,			// Leadscrew pith 
+		spacerDia: 22,			// Spacers Diameter
+		cdSpindleLs: 174,		// Spindle - Leadscrew Center Distance
+		cdMaxTopLs: 150,		// Maximum center distance top axle - leadscrew.
+		zMaxLs: 80,			// Biggest possible gear on leadscrew (quadrant cover)
+		gearSet : '25 30 33 40 42 50 52 60 66 70 75 80 80 90 90'
+	},
+	C6_IMP: {			// Conventional ID
+		desc: 'SIEG C6 Inches Leadscrew',	// Long description
+		spindleZ: 40,			// Spindle teeth count
+		spindleDia: 0,			// Spindle diameter above Z2
+		module: 1,				// Gear module
+		lsPitch: '12TPI',	// Leadscrew pith 
+		spacerDia: 22,			// Spacers Diameter
+		cdSpindleLs: 174,		// Spindle - Leadscrew Center Distance
+		cdMaxTopLs: 150,		// Maximum center distance top axle - leadscrew.
+		zMaxLs: 80,			// Biggest possible gear on leadscrew (quadrant cover)
+		gearSet: '30 35 40 45 48 50 60 66 68 70 70 72 75 80 90 100'
+	},
+	G0516: {
+		desc: 'Grizzly G0516 per manual p. 11',		
+		spindleZ: 40,
+		spindleDia: 0,
+		module: '1',
+		spacerDia: 22,
+		lsPitch: '12TPI',	// Leadscrew pith 	
+		cdSpindleLs: 174,
+		cdMaxTopLs: 150,
+		zMaxLs: 80,
+		gearSet: '40 45 48 50 60 65 66 68 70 70 72 75'
+	}
+}
+
+var DIN13 = {M1: 0.25, M1_1: 0.25, M1_2: 0.25, M1_4: 0.3, M1_6: 0.35, M1_8: 0.35,
+	M2: 0.4, M2_2: 0.45, M3: 0.5, M3_5: 0.6, M4: 0.7, M4_5: 0.75,	M5: 0.8, M6: 1,
+	M7: 1, M8: 1.25, M9: 1.25, M10: 1.5, M11:1.5, M12: 1.75, M14: 2, M16: 2,
+	M18: 2.5, M20: 2.50, M22: 2.5, M24: 3, M27: 3, M30: 3.5, M33: 3.50,	M36: 4,
+	M39: 4, M42: 4.5, M45: 4.5, M48: 5, M52: 5, M56: 5.5, M60: 5.5, M64: 6, M68: 6}
+	
+var B1_1 = [64, 56, 48, 40, 32, 24, 20, 18 ,16, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4.5, 4]
+
+var ms = {metric: {
+		accuracy: 0.01,
+		decDgts: 5,
+		unit: 'mm',
+		name: 'metric',
+		toThou: 1
+	}, english: {
+		accuracy: 0.4,
+		decDgts: 2,
+		unit: 'thou', // 1 millième de pouce, soit 0,0254 mm
+		name: 'english',
+		toThou: .0254
+	}
+}
+
+var cl = {}	// Current Lathe object
+var perms = {				// solutions counters
+	duplicate: 0,			// duplicate gears in set
+	spindle_top: 0,			// Spindle - top axle interference
+	top_bottom: 0,			// Top - bottom axle	"
+	bottom_leadscrew: 0,	// Bottom - leadscrew 	"
+	short: 0,				// too short
+	long: 0,				// Too long
+	leadscrew: 0,			// gear interference (cover)
+	invalid: 0,
+	fitting: 0,
+	total: 0 
+}
+	
+var nPerms,
+	halfMod,
+	zSpindleByLSpitch,
+	allGears, gearBoxRatios,
+	dupGears = false,
+	allPitches,
+	metric = true,
+	inchLSfactor,
+	sys = ms.metric
+	
+var setupTypes = [{
+	nGears: 3,
+	willFit: function(g) {return willFit(g[0], 0, 0, g[1], g[2], 0)},
+	getRatio: function(g) {return zSpindleByLSpitch / g[2]},
+	compound: 'no',
+	idlers: [0, 1]
+},{
+	nGears: 4,
+	willFit: function(g) {return willFit(g[0], g[1], g[2], 0, 0, g[3])},
+	getRatio: function(g) {return zSpindleByLSpitch / g[0] * g[1] / g[3]},
+	compound: 'top',
+	idlers: [2]
+},{
+	nGears: 4,
+	willFit: function(g) {return willFit(g[0], 0, g[2], g[1], 0, g[3])},
+	getRatio: function(g) {return zSpindleByLSpitch / g[1] * g[2] / g[3]},
+	compound: 'bottom',
+	idlers: [0]
+},{
+	nGears: 5,
+	willFit: function(g) {return willFit(g[0], g[1], g[2], g[3], g[4], 0)},
+	getRatio: function(g) {return zSpindleByLSpitch / g[0] * g[1] / g[2] * g[3] / g[4]},
+	compound: 'both',
+	idlers: []
+}]
+
+function onload() {
+
+	// lathe father element
+	var el = document.getElementById('latheSelect');
+	
+	// Create parameter elements and append to father
+	for (var k in knownLathes) {
+		var op = document.createElement("option")
+		op.value = k
+		op.text = knownLathes[k].desc
+		el.appendChild(op)
+	}
+
+	// Retrieve last selected type and units
+	if (localStorage && 'lathe_id' in localStorage) el.value = localStorage.lathe_id
+	else el.value = 'WM250_M'  // default lathe
+	fillFromKnown()
+
+	if (localStorage && 'metric' in localStorage) setMetric(localStorage.metric)
+	else setMetric(true)
+	
+	// pitch present in URL?
+	var pitchFromURL = decodeURIComponent(window.location.search.replace('?pitch=', ''))
+    if (pitchFromURL) { 
+	document.getElementById('pitchInput').value = pitchFromURL
+	fireCalc(pitchFromURL)
+	}
+}
+
+// pre-populate parameters
+function fillFromKnown() {
+
+	var ls = document.getElementById('latheSelect').value
+	// Save selection
+    localStorage && (localStorage.lathe_id = ls)
+
+	// fill parameters
+ 	for (var k in knownLathes[ls]) {
+		var el = document.getElementById(k)
+		if (el) el.value = knownLathes[ls][k]
+	}
+	readParams()
+}
+
+function readParams() {
+	var ls = document.getElementById('latheSelect').value
+
+	// read form values into current lathe object
+	for (var k in knownLathes[ls]) {
+		var el = document.getElementById(k)
+		if (el)
+			if (el.type == 'number') cl[k] = Number(el.value)
+			else cl[k] = el.value
+	}
+
+	var errMsg = ''
+	if (!cl.spindleZ || cl.spindleZ < 10 || cl.spindleZ > 100) 
+		errMsg += 'Please enter a reasonable spindle gear e.g. "60" for 60 teeth\n'
+	
+	if (cl.lsPitch.toUpperCase().endsWith('TPI')) {
+		// inch leadscrew, pitch will be in thou
+		cl.lsPitch = 1000 / cl.lsPitch.toUpperCase().replace('TPI','')
+		if (!cl.lsPitch || cl.lsPitch < 10 || cl.lsPitch > 500)
+		errMsg += 'Please enter a reasonable lead screw pitch e.g. "2" for 2mm or 12TPI\n'
+		inchLSfactor = 0.0254
+	} else {
+		if (!cl.lsPitch || cl.lsPitch < 0.1 || cl.lsPitch > 10)
+		errMsg += 'Please enter a reasonable lead screw pitch e.g. "2" for 2mm or 12TPI\n'
+		inchLSfactor = 1
+	}
+
+	zSpindleByLSpitch = cl.lsPitch * cl.spindleZ
+	halfMod = cl.module / 2
+		
+	if (cl.cdSpindleLs && (cl.cdSpindleLs < 10 || cl.cdSpindleLs > 1000))
+		errMsg += 'Please enter a reasonable spindle - leadscrew center distance\n'
+		
+	if (errMsg) {
+		alert(errMsg)
+		return
+	}
+	
+	allGears = []
+	document.getElementById('gearSet').value.split(/[, ]/).forEach(el => {
+		var z = Number(el.trim())
+		if (z) {
+			if (allGears.includes(z)) dupGears = true
+			allGears.push(z)
+		}
+	})
+	
+	if (allGears.length < 3 || allGears.length > 20) 
+		errMsg += 'Please specify all the gears you have e.g. "20 20 24 ...\nFrom 3 up to 20'
+		
+	gearBoxRatios = document.getElementById('gearBoxRatios').value.split(/[, ]/)
+	
+	calcAllSetups()
+	document.getElementById('pitchInput').value  = ''
+	document.getElementById('solutions').innerHTML = ''
+
+}
+
+function calcAllSetups() {
+	// calculate permutations and solutions
+	nPerms = 0
+	for (var k in perms) perms[k] = 0
+	allPitches = {}
+	
+	var startTime = new Date().getTime()
+	for (var setup of setupTypes) {
+		nPerms += possPerms(allGears.length, setup.nGears)
+		calcSetupSolutions(setup)
+	}
+	nPerms *= gearBoxRatios.length
+	// insert commas for thousands, maybe theNumber.toLocaleString();
+	document.getElementById('nPerms').innerHTML = nPerms.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,')
+		+ ' theoretical permutations'
+		
+	// Sanity check
+	var check = 0
+	for (var p in perms) check += perms[p]
+	if (check - perms.total != perms.total || nPerms != perms.total) console.log('Permutations calculation error', perms)
+	
+	var endTime = new Date().getTime()
+	console.log('calculation time ' + (endTime - startTime) + 'ms')
+	var pitchesArr = Array.from(Object.keys(allPitches))
+	if (!pitchesArr.length) return // nothing to do
+	
+	// prepare text for standard and all pitches
+	var allPitchesText = '', stdPitchesText = '', stdPitchesCnt = 0
+
+	for (var v of pitchesArr.sort(function (a,b) {return a-b})) {
+		var isStd = false
+		var url = '<a href="?pitch=' + Number(v) + sys.unit + '">' + Number(v)
+		if (metric) {
+			for (var km of Object.keys(DIN13)) if (v == DIN13[km]) {
+				isStd = true
+				stdPitchesCnt++
+				url += ' ' + km.replace('_', '.')
+			}
+		} else {
+			for (var km of B1_1) if (v == (1000 / km).toFixed(sys.decDgts)) {
+				isStd = true
+				stdPitchesCnt++
+				url += ' ' + km + 'TPI'
+			}
+		}
+		allPitchesText += url + '</a><br>'
+		if (isStd) stdPitchesText += url + '</a><br>'
+	}
+	
+	if (stdPitchesCnt) {
+		document.getElementById('Standard Possible PitchesButton').style.display = 'block'
+		document.getElementById('Standard Possible Pitches').innerHTML = '<h3>' + stdPitchesCnt + ' standard ' + sys.name + 
+			' pitches with given gears, in ' + sys.unit + '</h3><div id="stdPitchesContent" class="monoPitches">' + stdPitchesText + '</div>'	
+	}
+	
+	document.getElementById('All Possible PitchesButton').style.display = 'block'
+	document.getElementById('All Possible Pitches').innerHTML = '<h3>' + pitchesArr.length + ' possible ' + sys.name +
+		' pitches with given gears, in ' + sys.unit + '</h3><div id="allPitchesContent" class="monoPitches">' + allPitchesText + '</div>'
+}
+
+function calcSetupSolutions(setup) {
+	var gears = [], flags = []
+	
+	setup.solObj = {}
+	function stepGear() {
+		if (gears.length == setup.nGears) {
+			perms.total += gearBoxRatios.length
+			var res = setup.willFit(gears)
+			if (res) perms[res] += gearBoxRatios.length
+			else
+				// fitting perm, for each gearbox ratio
+				for (var gs of gearBoxRatios) {
+					// duplicates in gear set
+					var gString = gears.join(' ') + String(gearBoxRatios.length == 1 ? '' : ' ' + gs)
+					if (dupGears && setup.solObj[gString]) {
+						perms.duplicate++
+					} else {
+						perms.fitting++
+						// var cutterPitch = (setup.getRatio(gears) * gs / sys.toThou).toFixed(sys.decDgts) // 1 tenth
+						var cutterPitch = (setup.getRatio(gears) * gs * inchLSfactor / sys.toThou).toFixed(sys.decDgts) // 1 tenth
+						allPitches[cutterPitch] = {}
+						setup.solObj[gString] = cutterPitch
+					}
+				}
+		} else {
+			for (var i in allGears) {
+				if (!flags[i]) {
+					flags[i] = true
+					gears.push(allGears[i])
+					stepGear()
+					gears.pop()
+					flags[i] = false
+				}
+			}
+		}
+	}
+	stepGear()
+}
+
+function setMetric(toMetric) {
+	var prevMetric = metric
+	metric = toMetric
+	sys = metric ? ms.metric : ms.english
+	if (metric != prevMetric) calcAllSetups()
+	localStorage && (localStorage.metric = metric)
+}
+
+function fireCalc(pitchFromURL) {
+
+	var desiredPitch, stdPitchName, pitch
+	if (pitchFromURL) desiredPitch = pitchFromURL
+	else desiredPitch = document.getElementById('pitchInput').value.trim()
+	
+	// english units	
+	if (desiredPitch.toUpperCase().endsWith('TPI')) {
+		setMetric(false)
+		stdPitchName = desiredPitch.toUpperCase()
+		pitch = (1000 / (stdPitchName.replace('TPI',''))).toFixed(sys.decDgts)
+	} else if (desiredPitch.toLowerCase().endsWith('t')) {
+		setMetric(false)
+		stdPitchName = ''
+		pitch = Number(desiredPitch.toLowerCase().replace('t','')).toFixed(sys.decDgts)
+	} else if (desiredPitch.toLowerCase().endsWith('thou')) {
+		setMetric(false)
+		stdPitchName = ''
+		pitch = Number(desiredPitch.toLowerCase().replace('thou','')).toFixed(sys.decDgts)
+	} else if (desiredPitch >= 4) {
+		setMetric(false)
+		pitch = (1000 / desiredPitch).toFixed(sys.decDgts)
+		stdPitchName = desiredPitch + 'TPI'
+	// metric units
+	} else if (desiredPitch.toLowerCase().endsWith('mm')) {
+		setMetric(true)
+		stdPitchName = ''
+		pitch = Number(desiredPitch.toLowerCase().replace('mm', '')).toFixed(sys.decDgts)
+	} else if (desiredPitch.toUpperCase().startsWith('M')) {
+		setMetric(true)
+		pitch = DIN13[desiredPitch.toUpperCase().replace('.', '_')]
+		if (!pitch) {
+			alert('Unknown Mxxx pitch')
+			return
+		}
+		stdPitchName = desiredPitch.toUpperCase()
+	} else {
+		setMetric(true)
+		stdPitchName = ''
+		pitch = Number(desiredPitch).toFixed(sys.decDgts)
+	}
+	
+	if (pitch == 'NaN' || pitch <= 0 || metric && pitch > 100 || !metric && pitch > 4000) {
+		alert('Please enter a reasonable pitch e.g. "0.7" for 0.7mm, or 16TPI')
+		return
+	}
+
+	perms.valid = 0
+	var pitchStr = Number(pitch) + sys.unit + ' ' + stdPitchName
+	
+	if (perms.fitting) {	
+		document.getElementById('solutions').innerHTML = '<h3>Gear sets for pitch ' + pitchStr +
+			'</h3><div id="solutionsContent" class="monoSolutions"></div>'
+		for (var setup of setupTypes) {
+			var solTexts = [], sols = {}
+			// coalesce same solutions using idlers
+			for (var [k, v] of Object.entries(setup.solObj)) {
+				if (Math.abs(Number(pitch - v).toFixed(sys.decDgts)) > sys.accuracy) continue
+				var p = '', idlers = [], i = 0, gears = []
+				// string to array
+				for (var g of k.split(' ')) gears.push(g)
+				for (var gi in gears) {
+					// replace idlers with 'i'
+					if (gi == setup.idlers[i]) {
+						i++
+						idlers.push(gears[gi])
+						p += 'i '
+					} else p += String(gears[gi]) + ' '
+				}
+				// new solution ?
+				if (sols[p] == undefined) {
+					sols[p] = {pitch: v, min: idlers.slice(), max: idlers.slice()}
+				} else {
+					for (i in idlers) {
+						if (idlers[i] < sols[p].min[i]) sols[p].min[i] = idlers[i]
+						if (idlers[i] > sols[p].max[i]) sols[p].max[i] = idlers[i]
+					}
+				}
+			}
+			
+			// Textualize solutions
+			for (var [k, v] of Object.entries(sols)) {
+				var solTxt = '', i = 0
+				for (g of k.trim().split(' ')) {
+					if (g == 'i') {
+						solTxt += (v.min[i] == v.max[i] ? v.min[i] : v.min[i] + '&hellip;' + v.max[i]) + ' '
+						i++
+					} else {
+						solTxt += g + ' '
+					}
+				}
+
+				var solString
+				if (v.pitch == pitch) solString = v.pitch + ': ' + solTxt // exact solution				
+				// approssimate solutions are greyes, and show actual pitch
+				else solString = '<span class="approx">' + v.pitch + ': ' + solTxt + '</span>'
+				solTexts.push(solString)
+			}
+			
+			// create and fill box
+			if (solTexts.length) {
+				document.getElementById('solutionsContent').innerHTML += '<div class="solutionsBox"><b>' + setup.nGears +
+					' gears, ' + setup.compound + ' axle have compound, ' + solTexts.length + ' solution</b><br>' +
+					solTexts.sort().join('<br>') + '</div><br>'
+			}
+		}
+		document.getElementById('solutions').innerHTML += '</div>'	
+	} else {
+		document.getElementById('solutions').innerHTML = '<h3>' + pitchStr + ' is not possible with the given gears.<br>' +
+			'Try adding more gears or input a slightly different pitch.</h3>';
+	}
+}
+
+function willFit(zTS, zTO, zBO, zBS, zLS, zLO) {
+	
+	//	Spindle
+	//	TS - TO	(Top axle, under Spindle - Top axle, Other)	
+	//	BS - BO	(Bottom axle, under Spindle - Bottom axle, Other) 
+	//	LS - LO	(Leadscrew, under Spindle - Leadscrew, Other)
+	// "Other" can indifferently be to left or right of Spindle
+
+	// Gear OD = (Z + 2) * module
+	var odTS = (zTS + 2) * cl.module,
+		odTO = zTO ? (zTO + 2) * cl.module : cl.spacerDia,
+		odBO = zBO ? (zBO + 2) * cl.module : cl.spacerDia,
+		odBS = zBS ? (zBS + 2) * cl.module : cl.spacerDia,
+		odLS = zLS ? (zLS + 2) * cl.module : cl.spacerDia,
+		odLO = zLO ? (zLO + 2) * cl.module : cl.spacerDia
+
+	var cdSpindleTop = (cl.spindleZ + zTS) * halfMod
+	
+	// 2nd gear must be same or smaller 
+	if ((odTO + cl.spindleDia) / 2 >= cdSpindleTop) return 'spindle_top'
+	
+	// biggest leadscrew gear possible
+	if (zLS > cl.zMaxLs || zLO > cl.zMaxLs) return 'leadscrew'
+		
+	if (zTS && zTO) {
+		// Compound on top axle
+		var cdTopBot = (zTO + zBO) * halfMod
+		if ((odTS + odBS) / 2 >= cdTopBot) return 'top_bottom'	
+		if (zBS) {
+			// 5 gears
+			var cdBotLs = (zBS + zLS) * halfMod
+			if ((odBO + odLO) / 2 >= cdBotLs) return 'bottom_leadscrew'
+		} else var cdBotLs = (zBO + zBO) * halfMod // 4 gears, top compound		
+	} else {
+		// No compound on top axle
+		var cdTopBot = (zTS + zBS) * halfMod
+		if (zBO) {
+			// 4 gears, bottom compund
+			var cdBotLs = (zBO + zLO) * halfMod
+			if ((odBS + odLS) / 2 >= cdBotLs) return 'bottom_leadscrew'
+		} else var cdBotLs = (zBS + zLS) * halfMod // 3 gears
+	}
+	// Too short to reach both the lead screw and the spindle.
+	if (cdSpindleTop + cdTopBot + cdBotLs < cl.cdSpindleLs) return 'short'
+	// Too long to fit into the quadrant arm slot
+	if (cdTopBot + cdBotLs > cl.cdMaxTopLs) return 'long'
+}
+
+// Returns permutations count from set n of length k
+function possPerms(n, k) {
+	// Helper Function, generates factorials
+	function fact(num) {
+		var rval = 1
+		for (var i = 2; i <= num; rval *= i++);
+		return rval
+	}
+	
+	if (k > n) return 0
+    var p = fact(n), v = fact(n-k)
+    return p / v
+}
+
+function toggle(id) {
+	var el = document.getElementById(id)
+	if (el.style.display === 'none') {
+		el.style.display = 'block'
+		document.getElementById(id + 'Button').innerHTML = 'Hide ' + id
+	} else {
+		el.style.display = 'none'
+		document.getElementById(id + 'Button').innerHTML = 'Show ' + id
+	}
+}
+function toggleParams() {toggle('Lathe Parameters')}
+function toggleStdPitches() {toggle('Standard Possible Pitches')}
+function toggleAllPitches() {toggle('All Possible Pitches')}
+function toggleGearsConf() {toggle('Wheels Config')}
+</script>
+</head>
+
+<body onload="onload()">
+	<h3>Lathe Change Wheels Calculator</h3>
+	<label for="latheSelect">Select Lathe Model</label>
+	<select id="latheSelect" oninput="fillFromKnown()"></select>
+	<button id="Lathe ParametersButton" onclick="toggleParams()">Show Lathe Parameters</button>	
+	<form id="Lathe Parameters" style="display:none">
+	<fieldset form="Lathe Parameters"><legend>Basic Parameters</legend>
+		<span style="white-space:nowrap"><label for="spindleZ">Spindle gear tooth count:</label>
+		<input id="spindleZ" type="number" style="width:40px" onchange="readIParams()" required></span>
+		<span style="white-space:nowrap"><label for="lsPitch">Leadscrew pitch in mm or xxTPI:</label>
+		<input id="lsPitch" type="text" style="width:50px" onchange="readParams()" required></span>
+		<span style="white-space:nowrap"><label for="gears">Available gears:</label>
+		<input id="gearSet" type="text" size="40" onchange="readParams()" required></span>
+		<span id="nPerms"></span>
+	</fieldset>
+	<fieldset form="Lathe Parameters"><legend>Optional Parameters - All sizes in mm</legend>
+		<span style="white-space:nowrap"><label for="module">Gear module:</label>
+		<select id="module">
+			<option value="1">1</option>
+			<option value="1.25">1.25</option>
+			<option value="1.5">1.5</option>
+		</select></span>
+		<span style="white-space:nowrap"><label for="spindleDia">Spindle Dia. above 2nd gear:</label>
+		<input id="spindleDia" type="number"></span>
+		<span style="white-space:nowrap"><label for="spacerDia">Spacer Dia.:</label>
+		<input id="spacerDia" type="number" style="width:40px"></span>
+		<span style="white-space:nowrap"><label for="cdSpindleLs">Spindle - Leadscrew Center Distance:</label>
+		<input id="cdSpindleLs" type="number" style="width:40px"></span>
+		<span style="white-space:nowrap"><label for="cdMaxTopLs">Maximum Center distance between top axle and leadscrew</label>
+		<input id="cdMaxTopLs" type="number" style="width:40px"></span>
+		<span style="white-space:nowrap"><label for="zMaxLsLs">Biggest possible gear on leadscrew:</label>
+		<input id="zMaxLs" type="number" style="width:40px"></span>
+		<span style="white-space:nowrap"><label for="gearBoxRatios">Gearbox Ratios:</label>
+		<input id="gearBoxRatios" type="text" size="15" onchange="readParams()">
+	</fieldset>
+	</form>
+	<br>
+	<label for="pitchInput">Desired Pitch:</label>
+	<input id="pitchInput" required onsubmit="fireCalc()" onkeypress="event.key == 'Enter' && fireCalc()">
+	<p><b>Note:</b> either common mm or TPI values are directly recognized entering numbers only.<br>
+		For metric pitches enter xx<b>mm</b>, for DIN13 threads  <b>M</b>xx, for english threads  xx<b>TPI</b>, for pitches in thou  xx<b>t</b>.<br>
+		Results are shown according to latest entered units system</p>
+	<input type="button" value="Calculate" onclick="fireCalc()">
+	<p id="solutions"></p>
+	<button id="Standard Possible PitchesButton" onclick="toggleStdPitches()">Show Standard Possible Pitches</button>
+	<div id="Standard Possible Pitches" style="display: none;"></div>
+	<button id="All Possible PitchesButton" onclick="toggleAllPitches()">Show All Possible Pitches</button>
+	<div id="All Possible Pitches" style="display: none;"></div>
+	<button id="Wheels ConfigButton" onclick="toggleGearsConf()">Show Wheels Config</button>
+	<div id="Wheels Config" style="display: none;">
+	<h3>Possible gear configurations</h3>
+	<svg width="100%" height="100%" viewBox="0 0 1123 945" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+		<g>
+		<g transform="matrix(0.383149,0,0,1,-74.0052,-46.2634)">
+			<rect x="360.855" y="159.209" width="551.647" height="185.744" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.32px;"/>
+		</g>
+		<rect x="100.008" y="395.409" width="136.574" height="21.809" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="584.896" width="136.574" height="25.027" style="stroke:black;stroke-width:1px;"/>
+		<g transform="matrix(1,0,0,1,-387.689,-46.2634)">
+			<rect x="487.697" y="159.209" width="40.043" height="185.744" style="stroke:black;stroke-width:1px;"/>
+		</g>
+		<g transform="matrix(0.445843,0,0,1,-153.18,-46.2634)">
+			<rect x="487.697" y="805.13" width="474.075" height="35.037" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.29px;"/>
+		</g>
+		<g transform="matrix(1,0,0,1,-421.296,-58.6337)">
+			<rect x="636.678" y="368.952" width="21.2" height="526.274" style="fill:rgb(235,235,235);stroke:black;stroke-width:1px;"/>
+		</g>
+		<rect x="100.008" y="310.319" width="40.043" height="213.799" style="stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="346.071" width="42.903" height="128.708" style="stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="490.51" width="42.903" height="201.643" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="554.149" width="40.043" height="87.236" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="659.976" width="40.043" height="239.54" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="296.733" width="40.043" height="13.586" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="474.779" width="42.903" height="15.731" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="639.955" width="40.043" height="20.021" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		</g>
+		<g transform="matrix(1,0,0,1,260,0)">
+		<g transform="matrix(0.383149,0,0,1,-74.0052,-46.2634)">
+			<rect x="360.855" y="159.209" width="551.647" height="185.744" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.32px;"/>
+		</g>
+		<rect x="100.008" y="395.409" width="136.574" height="21.809" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="584.896" width="136.574" height="25.027" style="stroke:black;stroke-width:1px;"/>
+		<g transform="matrix(1,0,0,1,-387.689,-46.2634)">
+			<rect x="487.697" y="159.209" width="40.043" height="185.744" style="stroke:black;stroke-width:1px;"/>
+		</g>
+		<g transform="matrix(0.445843,0,0,1,-153.18,-46.2634)">
+			<rect x="487.697" y="805.13" width="474.075" height="35.037" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.29px;"/>
+		</g>
+		<g transform="matrix(1,0,0,1,-421.296,-58.6337)">
+			<rect x="636.678" y="368.952" width="21.2" height="526.274" style="fill:rgb(235,235,235);stroke:black;stroke-width:1px;"/>
+		</g>
+		<rect x="100.008" y="310.319" width="40.043" height="213.799" style="stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="346.071" width="42.903" height="128.708" style="stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="490.51" width="42.903" height="201.643" style="stroke:black;stroke-width:1px;"/>
+		<rect x="153.637" y="705.739" width="43.618" height="148.014" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="296.733" width="40.043" height="13.586" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="474.779" width="42.903" height="15.731" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="692.153" width="42.903" height="13.586" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		</g>
+		<g transform="matrix(1,0,0,1,520,0)">
+		<g transform="matrix(0.383149,0,0,1,-74.0052,-46.2634)">
+			<rect x="360.855" y="159.209" width="551.647" height="185.744" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.32px;"/>
+		</g>
+		<rect x="100.008" y="395.409" width="136.574" height="21.809" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="584.896" width="136.574" height="25.027" style="stroke:black;stroke-width:1px;"/>
+		<g transform="matrix(1,0,0,1,-387.689,-46.2634)">
+			<rect x="487.697" y="159.209" width="40.043" height="185.744" style="stroke:black;stroke-width:1px;"/>
+		</g>
+		<g transform="matrix(0.445843,0,0,1,-153.18,-46.2634)">
+			<rect x="487.697" y="805.13" width="474.075" height="35.037" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.29px;"/>
+		</g>
+		<g transform="matrix(1,0,0,1,-421.296,-58.6337)">
+			<rect x="636.678" y="368.952" width="21.2" height="526.274" style="fill:rgb(235,235,235);stroke:black;stroke-width:1px;"/>
+		</g>
+		<rect x="100.008" y="310.319" width="40.043" height="213.799" style="stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="490.51" width="42.903" height="201.643" style="stroke:black;stroke-width:1px;"/>
+		<rect x="153.637" y="705.739" width="43.618" height="148.014" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="296.733" width="40.043" height="13.586" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="154.352" y="692.153" width="42.903" height="13.586" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="524.117" width="40.043" height="30.032" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<g transform="matrix(1,0,0,1.36066,0,-214.873)">
+			<rect x="100.008" y="554.149" width="40.043" height="87.236" style="stroke:black;stroke-width:0.84px;"/>
+		</g>
+		</g>
+		<g transform="matrix(1,0,0,1,780,0)">
+		<g transform="matrix(0.383149,0,0,1,-74.0052,-46.2634)">
+			<rect x="360.855" y="159.209" width="551.647" height="185.744" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.32px;"/>
+		</g>
+		<rect x="100.008" y="395.409" width="136.574" height="21.809" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="584.896" width="136.574" height="25.027" style="stroke:black;stroke-width:1px;"/>
+		<g transform="matrix(1,0,0,1,-387.689,-46.2634)">
+			<rect x="487.697" y="159.209" width="40.043" height="185.744" style="stroke:black;stroke-width:1px;"/>
+		</g>
+		<g transform="matrix(0.445843,0,0,1,-153.18,-46.2634)">
+			<rect x="487.697" y="805.13" width="474.075" height="35.037" style="fill:rgb(235,235,235);stroke:black;stroke-width:1.29px;"/>
+		</g>
+		<g transform="matrix(1,0,0,1,-421.296,-58.6337)">
+			<rect x="636.678" y="368.952" width="21.2" height="526.274" style="fill:rgb(235,235,235);stroke:black;stroke-width:1px;"/>
+		</g>
+		<rect x="100.008" y="310.319" width="40.043" height="213.799" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="659.976" width="40.043" height="239.54" style="stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="296.733" width="40.043" height="13.586" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="639.955" width="40.043" height="20.021" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<rect x="100.008" y="524.117" width="40.043" height="30.032" style="fill:rgb(0,45,255);stroke:black;stroke-width:1px;"/>
+		<g transform="matrix(1,0,0,1.17213,0,-110.402)">
+			<rect x="100.008" y="554.149" width="40.043" height="87.236" style="stroke:black;stroke-width:0.92px;"/>
+		</g>
+		</g>
+		<g transform="matrix(1,0,0,1,30.8653,-9.62225)">
+		<text x="67.295px" y="101.168px" style="font-family:'Roboto-Regular', 'Roboto';font-size:50px;">5-gear</text>
+		</g>
+		<g transform="matrix(1,0,0,1,306.722,-9.37811)">
+		<text x="67.295px" y="101.168px" style="font-family:'Roboto-Regular', 'Roboto';font-size:50px;">4 t<tspan x="123.594px " y="101.168px ">o</tspan>p</text>
+		</g>
+		<g transform="matrix(1,0,0,1,522.923,-9.62225)">
+		<text x="67.295px" y="101.168px" style="font-family:'Roboto-Regular', 'Roboto';font-size:50px;">4 bottom</text>
+		</g>
+		<g transform="matrix(1,0,0,1,811.598,-9.62225)">
+		<text x="67.295px" y="101.168px" style="font-family:'Roboto-Regular', 'Roboto';font-size:50px;">3-gear</text>
+		</g>
+	</svg>
+	</div>
+	<br><i>Ver 1.01 - by Paolo Bevilacqua based on the work of Maxim Kachurovskiy - 2021</i>
+	</body>
+</html>
